@@ -65,7 +65,7 @@ const updateProfile = (req, res, next) => {
   User.findByIdAndUpdate(
     req.user._id,
     { name, email },
-    { new: true, runValidators: true },
+    { new: true, runValidators: true, context: 'query' },
   )
     .then((user) => {
       res.send(user);

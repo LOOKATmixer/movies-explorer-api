@@ -3,11 +3,15 @@ const { validateUserRegister, validateUserLogin } = require('../middlewares/cele
 
 const usersRouter = require('./users');
 const moviesRouter = require('./movies');
+const notFoundRouter = require('./notFound');
 const { login, createUser } = require('../controllers/users');
 const auth = require('../middlewares/auth');
 
-router.use('/users', auth, usersRouter);
-router.use('/movies', auth, moviesRouter);
 router.post('/signup', validateUserRegister, createUser);
 router.post('/signin', validateUserLogin, login);
+router.use(auth);
+router.use('/', notFoundRouter);
+router.use('/users', usersRouter);
+router.use('/movies', moviesRouter);
+
 module.exports = router;
