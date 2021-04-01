@@ -26,38 +26,31 @@ const getUser = (req, res, next) => {
 };
 
 const createUser = (req, res, next) => {
-  const {
-    name, email, password,
-  } = req.body;
-  if (req.body.password.length < 6) {
-    throw new BadRequestError(
-      'Ошибка валидации. Пароль должен состоять из 6 или более символов',
-    );
-  } else {
-    bcrypt
-      .hash(password.toString(), 10)
-      .then((hash) => User.create({
-        name,
-        email,
-        password: hash,
-      }))
-      .then((newUser) => {
-        if (!newUser) {
-          throw new NotFoundError('Неправильно переданы данные');
-        } else {
-          res.send({
-            name: newUser.name,
-            email: newUser.email,
-          });
-        }
-      })
-      .catch((err) => {
-        if (err.name === 'ValidationError') {
-          next(new ConflictError('Данный email уже зарегистрирован'));
-        }
-        next(err);
-      });
+  const { name, email, password } = req.body;
+  if (!email || !password || !name) {
+    throw new BadRequestError('Не предоставлены email, имя или пароль');
   }
+  User.findOne({ email })
+    .then((user) => {
+      if (user) {
+        throw new ConflictError(
+          'Пользователь с таким email уже зарегистрирован',
+        );
+      }
+      return bcrypt.hash(password, 10);
+    })
+    .then((hash) => User.create({
+      name,
+      email,
+      password: hash,
+    }).then(({ _id }) => {
+      res.status(200).send({
+        _id,
+        email,
+        name,
+      });
+    }))
+    .catch(next);
 };
 
 const updateProfile = (req, res, next) => {
