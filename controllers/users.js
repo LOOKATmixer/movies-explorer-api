@@ -8,6 +8,12 @@ const ConflictError = require('../errors/ConflictError');
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
+const handleError = (err) => {
+  if (err.name === 'ValidationError' || err.name === 'CastError') {
+    throw new BadRequestError(err.message);
+  }
+};
+
 const getUser = (req, res, next) => {
   User.findById(req.user._id)
     .then((user) => {
@@ -26,30 +32,18 @@ const getUser = (req, res, next) => {
 };
 
 const createUser = (req, res, next) => {
-  const { name, email, password } = req.body;
-  if (!email || !password || !name) {
-    throw new BadRequestError('Не предоставлены email, имя или пароль');
-  }
-  User.findOne({ email })
-    .then((user) => {
-      if (user) {
-        throw new ConflictError(
-          'Пользователь с таким email уже зарегистрирован',
-        );
-      }
-      return bcrypt.hash(password, 10);
-    })
+  const { email, password, name } = req.body;
+
+  bcrypt
+    .hash(password, 10)
     .then((hash) => User.create({
-      name,
       email,
       password: hash,
-    }).then(({ _id }) => {
-      res.status(200).send({
-        _id,
-        email,
-        name,
-      });
+      name,
     }))
+    .then(({ _id }) => User.findById(_id))
+    .then((user) => res.send(user))
+    .catch((err) => handleError(err))
     .catch(next);
 };
 
