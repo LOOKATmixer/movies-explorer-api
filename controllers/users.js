@@ -8,12 +8,6 @@ const ConflictError = require('../errors/ConflictError');
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
-const handleError = (err) => {
-  if (err.name === 'ValidationError' || err.name === 'CastError') {
-    throw new BadRequestError(err.message);
-  }
-};
-
 const getUser = (req, res, next) => {
   User.findById(req.user._id)
     .then((user) => {
@@ -32,19 +26,38 @@ const getUser = (req, res, next) => {
 };
 
 const createUser = (req, res, next) => {
-  const { email, password, name } = req.body;
-
-  bcrypt
-    .hash(password, 10)
-    .then((hash) => User.create({
-      email,
-      password: hash,
-      name,
-    }))
-    .then(({ _id }) => User.findById(_id))
-    .then((user) => res.send(user))
-    .catch((err) => handleError(err))
-    .catch(next);
+  const {
+    name, email, password,
+  } = req.body;
+  if (req.body.password.length < 6) {
+    throw new BadRequestError(
+      'Ошибка валидации. Пароль должен состоять из 6 или более символов',
+    );
+  } else {
+    bcrypt
+      .hash(password.toString(), 10)
+      .then((hash) => User.create({
+        name,
+        email,
+        password: hash,
+      }))
+      .then((newUser) => {
+        if (!newUser) {
+          throw new NotFoundError('Неправильно переданы данные');
+        } else {
+          res.send({
+            name: newUser.name,
+            email: newUser.email,
+          });
+        }
+      })
+      .catch((err) => {
+        if (err.name === 'ValidationError') {
+          next(new ConflictError('Данный email уже зарегистрирован'));
+        }
+        next(err);
+      });
+  }
 };
 
 const updateProfile = (req, res, next) => {
